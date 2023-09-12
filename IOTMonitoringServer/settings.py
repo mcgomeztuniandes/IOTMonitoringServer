@@ -46,10 +46,6 @@ INSTALLED_APPS = [
     'viewer'
 ]
 
-CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
-
-CRISPY_TEMPLATE_PACK = "bootstrap4"
-
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -158,6 +154,7 @@ LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = '/login/'
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
+CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap4'
 
 # Dirección del bróker MQTT
 MQTT_HOST = "54.156.79.170"
