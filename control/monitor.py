@@ -86,7 +86,7 @@ def analyze_data():
             alert = True
 
         if alert:
-            message = "ALERTA {} inestable".format(variable, min_value, max_value)
+            message = "ALERTA {} inestable".format(variable)
             topic = '{}/{}/{}/{}/in'.format(country, state, city, user)
             print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
             client.publish(topic, message)
