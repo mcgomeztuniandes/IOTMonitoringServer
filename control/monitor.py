@@ -83,6 +83,7 @@ def analyze_data():
         city = item['station__location__city__name']
         user = item['station__user__username']
         
+        # Variabilidad inestable en los valores permitidos, config y los que llegan en promedio del dispositivo IoT
         if item["check_value1"] - item["check_value2"] > (max_value - min_value) * 1.5:
             alert2 = True
 
