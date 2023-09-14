@@ -1,6 +1,7 @@
 from argparse import ArgumentError
+import json
 import ssl
-from django.db.models import Avg, StdDev, Max
+from django.db.models import Avg, StdDev, Max, Min
 from datetime import timedelta, datetime
 from receiver.models import Data, Measurement
 import paho.mqtt.client as mqtt
@@ -19,7 +20,7 @@ def analyze_data():
     print("Calculando alertas...")
 
     data = Data.objects.filter(
-        base_time__gte=datetime.now() - timedelta(minutes=1))
+        base_time__gte=datetime.now() - timedelta(hours=1))
     aggregation = data.annotate(check_value=Avg('avg_value')) \
         .select_related('station', 'measurement') \
         .select_related('station__user', 'station__location') \
@@ -32,6 +33,7 @@ def analyze_data():
                 'station__location__city__name',
                 'station__location__state__name',
                 'station__location__country__name')
+    
     alerts = 0
     for item in aggregation:
         alert = False
@@ -49,20 +51,19 @@ def analyze_data():
             alert = True
 
         if alert:
-            message = "ALERTA: {} {}".format(variable, 'alta' if item["check_value"] > max_value else 'baja')
+            message = "ALERT {} {} {}".format(variable, min_value, max_value)
             topic = '{}/{}/{}/{}/in'.format(country, state, city, user)
             print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
             client.publish(topic, message)
             alerts += 1
 
-    data2 = Data.objects.filter(
-        base_time__gte=datetime.now() - timedelta(minutes=1))
-    aggregation2 = data2.annotate(check_value=Max('avg_value')) \
+    # Nuevo evento
+    aggregation2 = data.annotate(check_value1=Max('max_value'), check_value2=Min('min_value')) \
         .select_related('station', 'measurement') \
         .select_related('station__user', 'station__location') \
         .select_related('station__location__city', 'station__location__state',
                         'station__location__country') \
-        .values('check_value', 'station__user__username',
+        .values('check_value1', 'check_value2', 'station__user__username',
                 'measurement__name',
                 'measurement__max_value',
                 'measurement__min_value',
@@ -70,9 +71,9 @@ def analyze_data():
                 'station__location__state__name',
                 'station__location__country__name')
     
+    alerts2 = 0
     for item in aggregation2:
-        alert = False
-
+        alert2 = False
         variable = item["measurement__name"]
         max_value = item["measurement__max_value"] or 0
         min_value = item["measurement__min_value"] or 0
@@ -81,19 +82,21 @@ def analyze_data():
         state = item['station__location__state__name']
         city = item['station__location__city__name']
         user = item['station__user__username']
+        
+        if item["check_value1"] - item["check_value2"] > (max_value - min_value) * 1.5:
+            alert2 = True
 
-        if item["check_value"] > (max_value) :
-            alert = True
-
-        if alert:
-            message = "ALERTA {} pico alto".format(variable)
+        if alert2:
+            message = "ALERT2 {} inestable".format(variable)
             topic = '{}/{}/{}/{}/in'.format(country, state, city, user)
             print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
             client.publish(topic, message)
-            alerts += 1
+            alerts2 += 1
 
     print(len(aggregation), "dispositivos revisados")
     print(alerts, "alertas enviadas")
+    print(len(aggregation2), "nuevos dispositivos revisados")
+    print(alerts2, "nuevas alertas enviadas")
 
 
 def on_connect(client, userdata, flags, rc):
